@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Driver {
+  id           Int      @id @default(autoincrement())
+  driverNumber String   @unique
+  personNumber String   @unique
+  name         String
+  lastName     String
+  address      String
+  town         String
+  postalCode   String
+  telephone    String
+  email        String   @unique
+  salaryPercentage Decimal @default(50) // Lønnprosent (default 50%)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  skifts Skift[]
+
+  @@map("drivers")
+}
+
+model Car {
+  id           Int      @id @default(autoincrement())
+  licenseNumber String   @unique
+  carBrand     String
+  modelYear    Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  skifts Skift[]
+
+  @@map("cars")
+}
+
+model Skift {
+  id            Int      @id @default(autoincrement())
+  skiftNumber   String   @unique
+  kmBetweenSkift Decimal @default(0)
+  startDate     DateTime
+  stopDate      DateTime?
+  startTime     String   // Time as string (HH:MM)
+  stopTime      String?  // Time as string (HH:MM)
+  salaryBasis    Decimal  @default(0)
+  startKm       Decimal  @default(0)
+  stopKm        Decimal  @default(0)
+  totalKm       Decimal  @default(0)
+  antTurer      Int      @default(0)
+  kmOpptatt     Decimal  @default(0)
+  tipsKontant   Decimal  @default(0)
+  tipsKreditt   Decimal  @default(0)
+  netto         Decimal  @default(0)
+  loyve         String?  // Løyve nummer fra Excel kolonne B
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Foreign Keys
+  driverId Int
+  carId    Int
+
+  // Relations
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  car    Car    @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@map("skifts")
+}
+
