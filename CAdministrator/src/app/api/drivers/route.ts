@@ -27,8 +27,7 @@ export async function GET() {
     const drivers = await prisma.driver.findMany({
       include: {
         skifts: {
-          orderBy: { startDate: 'desc' },
-          take: 5
+          orderBy: { startDate: 'desc' }
         }
       },
       orderBy: { name: 'asc' }
@@ -63,13 +62,33 @@ export async function POST(request: NextRequest) {
     const englishData = mapDriverFromNorwegian(validatedData)
     console.log('Mapped to English:', englishData)
     
-    const driver = await prisma.driver.create({
-      data: englishData
+    // Create driver and user in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the driver
+      const driver = await tx.driver.create({
+        data: englishData
+      })
+      console.log('Driver created:', driver)
+      
+      // Create user account for the driver
+      const username = driver.driverNumber
+      const password = `${driver.driverNumber}${driver.name}`
+      
+      const user = await tx.user.create({
+        data: {
+          username,
+          password,
+          role: 'driver',
+          driverId: driver.id
+        }
+      })
+      console.log('User created for driver:', user)
+      
+      return { driver, user }
     })
-    console.log('Driver created:', driver)
     
     // Map back to Norwegian for response
-    const norwegianDriver = mapDriverToNorwegian(driver)
+    const norwegianDriver = mapDriverToNorwegian(result.driver)
     console.log('Mapped back to Norwegian:', norwegianDriver)
     
     return NextResponse.json(norwegianDriver, { status: 201 })
@@ -91,6 +110,9 @@ export async function POST(request: NextRequest) {
         }
         if (target?.includes('email')) {
           return NextResponse.json({ error: 'E-post eksisterer allerede' }, { status: 400 })
+        }
+        if (target?.includes('username')) {
+          return NextResponse.json({ error: 'Brukernavn eksisterer allerede' }, { status: 400 })
         }
         return NextResponse.json({ error: 'En eller flere felt eksisterer allerede' }, { status: 400 })
       }

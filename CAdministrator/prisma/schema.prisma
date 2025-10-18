@@ -10,6 +10,21 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      String   // 'admin' or 'driver'
+  driverId  Int?     @unique // Reference to driver if role is 'driver'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  driver Driver? @relation(fields: [driverId], references: [id])
+
+  @@map("users")
+}
+
 model Driver {
   id           Int      @id @default(autoincrement())
   driverNumber String   @unique
@@ -27,6 +42,7 @@ model Driver {
 
   // Relations
   skifts Skift[]
+  user   User?
 
   @@map("drivers")
 }

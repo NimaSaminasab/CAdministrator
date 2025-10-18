@@ -1,177 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Car, Users, Clock, Plus } from 'lucide-react'
-import DriversTable from '@/components/DriversTable'
-import CarsTable from '@/components/CarsTable'
-import SkiftsTable from '@/components/SkiftsTable'
-import AddDriverDialog from '@/components/AddDriverDialog'
-import AddCarDialog from '@/components/AddCarDialog'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
-interface DashboardStats {
-  totalDrivers: number
-  totalCars: number
-  totalSkifts: number
-  activeSkifts: number
-}
-
-export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalDrivers: 0,
-    totalCars: 0,
-    totalSkifts: 0,
-    activeSkifts: 0
-  })
-  const [activeTab, setActiveTab] = useState('drivers')
-  const [showAddDriver, setShowAddDriver] = useState(false)
-  const [showAddCar, setShowAddCar] = useState(false)
+export default function HomePage() {
+  const router = useRouter()
 
   useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const fetchStats = async () => {
-    try {
-      const [driversRes, carsRes, skiftsRes] = await Promise.all([
-        fetch('/api/drivers'),
-        fetch('/api/cars'),
-        fetch('/api/skifts')
-      ])
-      
-      const drivers = await driversRes.json()
-      const cars = await carsRes.json()
-      const skifts = await skiftsRes.json()
-      
-      setStats({
-        totalDrivers: drivers.length,
-        totalCars: cars.length,
-        totalSkifts: skifts.length,
-        activeSkifts: skifts.filter((s: any) => !s.sluttDato).length
-      })
-    } catch (error) {
-      console.error('Failed to fetch stats:', error)
-    }
-  }
-
-  const handleAddSuccess = () => {
-    fetchStats()
-    setShowAddDriver(false)
-    setShowAddCar(false)
-    setShowAddSkift(false)
-  }
+    router.push('/login')
+  }, [router])
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Taxi Administrasjon</h1>
-              <p className="text-gray-600 mt-1">Administrer din taxi-flåte, sjåfører og skift</p>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Taxi Management System</h1>
+        <p className="text-gray-600">Omdirigerer til innlogging...</p>
       </div>
-
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totalt Sjåfører</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalDrivers}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totalt Biler</CardTitle>
-              <Car className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCars}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Totalt Skift</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalSkifts}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aktive Skift</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.activeSkifts}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="flex justify-between items-center">
-            <TabsList>
-              <TabsTrigger value="drivers">Sjåfører</TabsTrigger>
-              <TabsTrigger value="cars">Biler</TabsTrigger>
-              <TabsTrigger value="skifts">Skift</TabsTrigger>
-            </TabsList>
-            
-            <div className="flex gap-2">
-              {activeTab === 'drivers' && (
-                <Button onClick={() => setShowAddDriver(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Legg til Sjåfør
-                </Button>
-              )}
-              {activeTab === 'cars' && (
-                <Button onClick={() => setShowAddCar(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Legg til Bil
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <TabsContent value="drivers">
-            <DriversTable onRefresh={fetchStats} />
-          </TabsContent>
-          
-          <TabsContent value="cars">
-            <CarsTable onRefresh={fetchStats} />
-          </TabsContent>
-          
-          <TabsContent value="skifts">
-            <SkiftsTable onRefresh={fetchStats} />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Dialogs */}
-      <AddDriverDialog 
-        open={showAddDriver} 
-        onOpenChange={setShowAddDriver} 
-        onSuccess={handleAddSuccess} 
-      />
-      <AddCarDialog 
-        open={showAddCar} 
-        onOpenChange={setShowAddCar} 
-        onSuccess={handleAddSuccess} 
-      />
     </div>
   )
 }

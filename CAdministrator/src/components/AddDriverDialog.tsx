@@ -41,6 +41,10 @@ export default function AddDriverDialog({ open, onOpenChange, onSuccess }: AddDr
       })
 
       if (response.ok) {
+        const driverData = await response.json()
+        const username = formData.sjåforNummer
+        const password = `${formData.sjåforNummer}${formData.fornavn}`
+        
         setFormData({
           sjåforNummer: '',
           personNummer: '',
@@ -55,6 +59,9 @@ export default function AddDriverDialog({ open, onOpenChange, onSuccess }: AddDr
         })
         onOpenChange(false)
         onSuccess()
+        
+        // Show success message with login credentials
+        alert(`Sjåfør opprettet! Brukerkonto opprettet:\nBrukernavn: ${username}\nPassord: ${password}`)
       } else {
         const errorData = await response.json()
         console.error('Failed to create driver:', errorData)
@@ -78,7 +85,8 @@ export default function AddDriverDialog({ open, onOpenChange, onSuccess }: AddDr
         <DialogHeader>
           <DialogTitle>Legg til Ny Sjåfør</DialogTitle>
           <DialogDescription>
-            Skriv inn sjåførens informasjon for å legge dem til i systemet.
+            Skriv inn sjåførens informasjon for å legge dem til i systemet. 
+            En brukerkonto vil automatisk opprettes med brukernavn = sjåførnummer og passord = sjåførnummer + fornavn.
           </DialogDescription>
         </DialogHeader>
         

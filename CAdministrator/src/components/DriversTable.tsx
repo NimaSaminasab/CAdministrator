@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Edit, Trash2, Phone, Mail } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Edit, Trash2, Phone, Mail, Search } from 'lucide-react'
 
 interface Driver {
   id: number
@@ -25,9 +26,14 @@ interface DriversTableProps {
   onRefresh: () => void
 }
 
-export default function DriversTable({ onRefresh }: DriversTableProps) {
+export interface DriversTableRef {
+  refresh: () => void
+}
+
+const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh }, ref) => {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     fetchDrivers()
@@ -45,6 +51,12 @@ export default function DriversTable({ onRefresh }: DriversTableProps) {
     }
   }
 
+
+  // Expose refresh function to parent component
+  useImperativeHandle(ref, () => ({
+    refresh: fetchDrivers
+  }))
+
   const handleDelete = async (id: number) => {
     if (!confirm('Er du sikker på at du vil slette denne sjåføren?')) return
     
@@ -61,14 +73,53 @@ export default function DriversTable({ onRefresh }: DriversTableProps) {
     return <div className="text-center py-8">Laster sjåfører...</div>
   }
 
+  const filteredDrivers = drivers.filter(driver => {
+    if (!searchTerm) return true
+    
+    const searchLower = searchTerm.toLowerCase()
+    
+    // Søk i sjåfør ID (eksakt match)
+    if (driver.sjåforNummer.toLowerCase() === searchLower) return true
+    
+    // Søk i navn (fornavn og etternavn)
+    const fullName = `${driver.fornavn} ${driver.etternavn}`.toLowerCase()
+    if (fullName.includes(searchLower)) return true
+    if (driver.fornavn.toLowerCase().includes(searchLower)) return true
+    if (driver.etternavn.toLowerCase().includes(searchLower)) return true
+    
+    // Søk i personnummer
+    if (driver.personNummer.toLowerCase().includes(searchLower)) return true
+    
+    // Søk i telefon
+    if (driver.telefon.includes(searchTerm)) return true
+    
+    // Søk i email
+    if (driver.epost.toLowerCase().includes(searchLower)) return true
+    
+    return false
+  })
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sjåfører ({drivers.length})</CardTitle>
+        <CardTitle>Sjåfører ({filteredDrivers.length} av {drivers.length})</CardTitle>
+        <div className="mt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Søk etter sjåfør ID, navn, personnummer, telefon eller email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
             <TableRow>
                 <TableHead>Sjåfør ID</TableHead>
               <TableHead>Navn</TableHead>
@@ -80,7 +131,7 @@ export default function DriversTable({ onRefresh }: DriversTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {drivers.map((driver) => (
+            {filteredDrivers.map((driver) => (
               <TableRow key={driver.id}>
                 <TableCell className="font-medium">{driver.sjåforNummer}</TableCell>
                 <TableCell>
@@ -136,8 +187,13 @@ export default function DriversTable({ onRefresh }: DriversTableProps) {
             ))}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   )
-}
+})
+
+DriversTable.displayName = 'DriversTable'
+
+export default DriversTable
 

@@ -14,13 +14,16 @@ interface Skift {
   startTid: string
   sluttTid?: string
   totalKm: number
+  kmOpptatt: number
   antTurer: number
+  lonnBasis: number
   netto: number
   loyve?: string
   driver: {
     fornavn: string
     etternavn: string
     sjåforNummer: string
+    lonnprosent: number
   }
   car: {
     skiltNummer: string
@@ -172,10 +175,11 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
   }
 
   const calculateHourlySalary = (skift: Skift): number => {
-    if (skift.sluttTid && skift.startTid && skift.lonnBasis > 0) {
+    if (skift.sluttTid && skift.startTid) {
       const hours = calculateHoursBetween(skift.startTid, skift.sluttTid, skift.startDato, skift.sluttDato)
       if (hours > 0) {
-        return Number(skift.lonnBasis) / hours
+        const salary = calculateSalary(skift)
+        return salary / hours
       }
     }
     return 0
@@ -186,6 +190,11 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
       return (Number(skift.kmOpptatt) / Number(skift.totalKm)) * 100
     }
     return 0
+  }
+
+  const calculateSalary = (skift: Skift): number => {
+    if (!skift.driver || !skift.driver.lonnprosent) return 0
+    return (skift.lonnBasis * skift.driver.lonnprosent) / 100
   }
 
   const calculateAverageHourlySalary = (skiftsToCalculate: Skift[] = filteredSkifts): number => {
@@ -204,12 +213,14 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
     const totalKmOpptatt = skiftsToCalculate.reduce((sum, skift) => sum + Number(skift.kmOpptatt), 0)
     const totalTurer = skiftsToCalculate.reduce((sum, skift) => sum + Number(skift.antTurer), 0)
     const totalLonnBasis = skiftsToCalculate.reduce((sum, skift) => sum + Number(skift.lonnBasis), 0)
+    const totalSalary = skiftsToCalculate.reduce((sum, skift) => sum + calculateSalary(skift), 0)
     
     return {
       totalKmSkift,
       totalKmOpptatt,
       totalTurer,
-      totalLonnBasis
+      totalLonnBasis,
+      totalSalary
     }
   }
 
@@ -269,8 +280,9 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
               <h3 className="text-lg font-semibold mb-4 text-blue-600 border-b pb-2">
                 {formatMonthYear(monthYear)} ({groupedSkifts[monthYear].length} skift)
               </h3>
-              <Table>
-                <TableHeader>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                   <TableRow>
                     <TableHead>Skift #</TableHead>
                     <TableHead>Sjåfør</TableHead>
@@ -282,7 +294,8 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                     <TableHead>Opptatt %</TableHead>
                     <TableHead>Turer</TableHead>
                     <TableHead>Lønnsgrunnlag</TableHead>
-                    <TableHead>Lønnsgrunnlag/time</TableHead>
+                    <TableHead>Lønn</TableHead>
+                    <TableHead>Lønn/time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -346,6 +359,9 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                 <TableCell className="font-medium">
                   {skift.lonnBasis.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })}
                 </TableCell>
+                <TableCell className="font-medium text-green-700">
+                  {calculateSalary(skift).toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })}
+                </TableCell>
                 <TableCell className="font-medium">
                   {calculateHourlySalary(skift) > 0 ? (
                     calculateHourlySalary(skift).toLocaleString('no-NO', { style: 'currency', currency: 'NOK' }) + '/time'
@@ -356,7 +372,8 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                   </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           ))}
         </div>
@@ -364,7 +381,7 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
         {/* Summer */}
         <div className="mt-8 p-4 bg-blue-50 rounded-lg border">
           <h4 className="text-lg font-semibold text-gray-800 mb-4">Summer for alle skifter</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
                 {calculateTotals().totalKmSkift.toLocaleString('no-NO')} km
@@ -392,6 +409,15 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
               </div>
               <div className="text-sm text-gray-600">Lønnsgrunnlag</div>
             </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-emerald-600">
+                {calculateTotals().totalSalary.toLocaleString('no-NO', { 
+                  style: 'currency', 
+                  currency: 'NOK' 
+                })}
+              </div>
+              <div className="text-sm text-gray-600">Total lønn</div>
+            </div>
           </div>
         </div>
         
@@ -399,8 +425,8 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
         <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-lg font-semibold text-gray-800">Gjennomsnittlig lønnsgrunnlag/time</h4>
-              <p className="text-sm text-gray-600">Basert på alle skifter med gyldig lønnsgrunnlag/time beregning</p>
+              <h4 className="text-lg font-semibold text-gray-800">Gjennomsnittlig lønn/time</h4>
+              <p className="text-sm text-gray-600">Basert på alle skifter med gyldig lønn/time beregning</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-green-600">

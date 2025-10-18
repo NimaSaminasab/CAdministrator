@@ -60,8 +60,9 @@ export default function CarsTable({ onRefresh }: CarsTableProps) {
         <CardTitle>Biler ({cars.length})</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
             <TableRow>
               <TableHead>Skilt Nummer</TableHead>
               <TableHead>Bilmerke</TableHead>
@@ -105,6 +106,7 @@ export default function CarsTable({ onRefresh }: CarsTableProps) {
             ))}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   )
