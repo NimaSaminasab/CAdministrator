@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { Clock, User, Car, Search } from 'lucide-react'
+import Calendar, { DateRange } from './Calendar'
+import { useRouter } from 'next/navigation'
 
 interface Skift {
   id: number
@@ -37,9 +39,11 @@ interface SkiftsTableProps {
 }
 
 export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
+  const router = useRouter()
   const [skifts, setSkifts] = useState<Skift[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedDate, setSelectedDate] = useState<DateRange | null>(null)
 
   useEffect(() => {
     fetchSkifts()
@@ -50,19 +54,34 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
       const response = await fetch('/api/skifts')
       const data = await response.json()
       
-      // Sort skifts by start date (oldest first - ascending)
-      const sortedSkifts = data.sort((a: Skift, b: Skift) => {
-        const dateA = new Date(a.startDato)
-        const dateB = new Date(b.startDato)
-        return dateA.getTime() - dateB.getTime() // Oldest first
-      })
-      
-      setSkifts(sortedSkifts)
+      // API already returns data sorted by newest first (orderBy: { startDate: 'desc' })
+      setSkifts(data)
     } catch (error) {
       console.error('Failed to fetch skifts:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper function to get local date string (YYYY-MM-DD) without timezone issues
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // Get shifts count by date for calendar
+  const getShiftsByDate = () => {
+    const shiftsByDate: { [key: string]: number } = {}
+    
+    skifts.forEach(skift => {
+      const date = new Date(skift.startDato)
+      const dateKey = getLocalDateString(date)
+      shiftsByDate[dateKey] = (shiftsByDate[dateKey] || 0) + 1
+    })
+    
+    return shiftsByDate
   }
 
   const groupSkiftsByMonth = (skifts: Skift[]) => {
@@ -76,6 +95,15 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
         groups[monthYear] = []
       }
       groups[monthYear].push(skift)
+    })
+    
+    // Sort shifts within each month group by start date (newest first)
+    Object.keys(groups).forEach(monthYear => {
+      groups[monthYear].sort((a, b) => {
+        const dateA = new Date(a.startDato)
+        const dateB = new Date(b.startDato)
+        return dateB.getTime() - dateA.getTime() // Newest first
+      })
     })
     
     return groups
@@ -229,50 +257,191 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
   }
 
   const filteredSkifts = skifts.filter(skift => {
+    // Date filtering - support both single date and date range
+    if (selectedDate && selectedDate.start) {
+      const skiftDate = new Date(skift.startDato)
+      const skiftDateStr = getLocalDateString(skiftDate)
+      const startDateStr = getLocalDateString(selectedDate.start)
+      
+      if (selectedDate.end) {
+        // Date range filtering
+        const endDateStr = getLocalDateString(selectedDate.end)
+        if (skiftDateStr < startDateStr || skiftDateStr > endDateStr) {
+          return false
+        }
+      } else {
+        // Single date filtering
+        if (skiftDateStr !== startDateStr) {
+          return false
+        }
+      }
+    }
+    
+    // Search term filtering - comprehensive search across all fields
     if (!searchTerm) return true
     
-    const searchLower = searchTerm.toLowerCase()
+    const searchLower = searchTerm.toLowerCase().trim()
     
-    // Søk i skiftnummer (eksakt match)
-    if (skift.skiftNummer.toLowerCase() === searchLower) return true
+    // Search in shift number
+    if (skift.skiftNummer.toLowerCase().includes(searchLower)) return true
     
-    // Søk i sjåfør navn
+    // Search in driver information
     if (skift.driver) {
       const driverName = `${skift.driver.fornavn} ${skift.driver.etternavn}`.toLowerCase()
       if (driverName.includes(searchLower)) return true
       if (skift.driver.sjåforNummer.toLowerCase().includes(searchLower)) return true
+      if (skift.driver.fornavn.toLowerCase().includes(searchLower)) return true
+      if (skift.driver.etternavn.toLowerCase().includes(searchLower)) return true
     }
     
-    // Søk i løyve
+    // Search in license (løyve)
     if (skift.loyve && skift.loyve.toLowerCase().includes(searchLower)) return true
     
-    // Søk i startdato
-    const startDate = new Date(skift.startDato).toLocaleDateString('no-NO')
-    if (startDate.includes(searchLower)) return true
+    // Search in car information
+    if (skift.car) {
+      if (skift.car.skiltNummer.toLowerCase().includes(searchLower)) return true
+      if (skift.car.bilmerke.toLowerCase().includes(searchLower)) return true
+      if (skift.car.arsmodell.toString().includes(searchLower)) return true
+    }
+    
+    // Search in dates (various formats)
+    const startDate = new Date(skift.startDato)
+    const startDateStr = startDate.toLocaleDateString('no-NO')
+    const startDateISO = getLocalDateString(startDate)
+    if (startDateStr.includes(searchLower)) return true
+    if (startDateISO.includes(searchLower)) return true
+    
+    if (skift.sluttDato) {
+      const endDate = new Date(skift.sluttDato)
+      const endDateStr = endDate.toLocaleDateString('no-NO')
+      if (endDateStr.includes(searchLower)) return true
+    }
+    
+    // Search in times
+    if (skift.startTid && skift.startTid.toLowerCase().includes(searchLower)) return true
+    if (skift.sluttTid && skift.sluttTid.toLowerCase().includes(searchLower)) return true
+    
+    // Search in numeric fields (as strings for partial matches)
+    if (skift.totalKm.toString().includes(searchLower)) return true
+    if (skift.kmOpptatt.toString().includes(searchLower)) return true
+    if (skift.antTurer.toString().includes(searchLower)) return true
+    if (skift.lonnBasis.toString().includes(searchLower)) return true
+    if (skift.netto.toString().includes(searchLower)) return true
     
     return false
   })
 
   const groupedSkifts = groupSkiftsByMonth(filteredSkifts)
-  const sortedMonthYears = Object.keys(groupedSkifts).sort()
+  const sortedMonthYears = Object.keys(groupedSkifts).sort((a, b) => {
+    // Sort by year first, then by month (newest first)
+    const [yearA, monthA] = a.split('-').map(Number)
+    const [yearB, monthB] = b.split('-').map(Number)
+    
+    if (yearA !== yearB) {
+      return yearB - yearA // Newest year first
+    }
+    return monthB - monthA // Newest month first
+  })
+
+  // Navigate to histogram page with column type and filtered shifts
+  const handleColumnClick = (columnType: string) => {
+    // Filter shifts based on selected date
+    let filteredShifts = filteredSkifts
+    if (selectedDate) {
+      filteredShifts = filteredSkifts.filter(skift => {
+        const skiftDate = new Date(skift.startDato)
+        
+        if (selectedDate.start && selectedDate.end) {
+          const endOfDay = new Date(selectedDate.end)
+          endOfDay.setHours(23, 59, 59, 999)
+          return skiftDate >= selectedDate.start && skiftDate <= endOfDay
+        } else if (selectedDate.start) {
+          return skiftDate.toDateString() === selectedDate.start.toDateString()
+        }
+        
+        return true
+      })
+    }
+    
+    // Store filtered shifts in sessionStorage temporarily
+    sessionStorage.setItem('histogramShifts', JSON.stringify(filteredShifts))
+    
+    const params = new URLSearchParams()
+    params.set('column', columnType)
+    
+    if (selectedDate?.start) {
+      params.set('startDate', selectedDate.start.toISOString().split('T')[0])
+    }
+    
+    if (selectedDate?.end) {
+      params.set('endDate', selectedDate.end.toISOString().split('T')[0])
+    }
+    try {
+      const from = window.location.pathname + window.location.search
+      params.set('from', encodeURIComponent(from))
+    } catch {}
+
+    router.push(`/dashboard/shifts/histogram?${params.toString()}`)
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Skift ({filteredSkifts.length} av {skifts.length})</CardTitle>
-        <div className="mt-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Søk etter skiftnummer, sjåfør, løyve eller startdato..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+    <div className="space-y-6">
+      {/* Calendar Component - 1/3 Width */}
+      <div className="flex justify-center">
+        <div className="w-1/3 min-w-[320px]">
+          <Calendar 
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            shiftsByDate={getShiftsByDate()}
+            shifts={skifts}
+          />
         </div>
-      </CardHeader>
+      </div>
+      
+      {/* Shifts Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Skift ({filteredSkifts.length} av {skifts.length})
+            {selectedDate && selectedDate.start && (
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                - {selectedDate.start.toLocaleDateString('no-NO')}
+                {selectedDate.end && ` til ${selectedDate.end.toLocaleDateString('no-NO')}`}
+              </span>
+            )}
+          </CardTitle>
+          <div className="mt-4 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Søk etter skiftnummer, sjåfør, bil, løyve, dato, tid eller annen informasjon..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  aria-label="Clear search"
+                  type="button"
+                >
+                  <span className="text-lg">×</span>
+                </button>
+              )}
+            </div>
+            {searchTerm && (
+              <div className="text-sm text-gray-500">
+                {filteredSkifts.length === 0 ? (
+                  <span className="text-red-500">Ingen skift funnet for "{searchTerm}"</span>
+                ) : (
+                  <span>Fant {filteredSkifts.length} {filteredSkifts.length === 1 ? 'skift' : 'skift'} for "{searchTerm}"</span>
+                )}
+              </div>
+            )}
+          </div>
+        </CardHeader>
       <CardContent>
         <div className="space-y-8">
           {sortedMonthYears.map((monthYear) => (
@@ -289,13 +458,111 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                     <TableHead>Løyve</TableHead>
                     <TableHead>Start Dato & Tid</TableHead>
                     <TableHead>Stopp Dato & Tid</TableHead>
-                    <TableHead>Km skift</TableHead>
-                    <TableHead>Km opptatt</TableHead>
-                    <TableHead>Opptatt %</TableHead>
-                    <TableHead>Turer</TableHead>
-                    <TableHead>Lønnsgrunnlag</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                      onClick={() => handleColumnClick('totalKm')}
+                      title="Klikk for å se histogram"
+                    >
+                      Km skift
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                      onClick={() => {
+                        // reuse filteredSkifts (already filtered by search) + date filter in-line
+                        let toSend = filteredSkifts
+                        if (selectedDate) {
+                          toSend = filteredSkifts.filter(skift => {
+                            const skiftDate = new Date(skift.startDato)
+                            if (selectedDate.start && selectedDate.end) {
+                              const endOfDay = new Date(selectedDate.end)
+                              endOfDay.setHours(23, 59, 59, 999)
+                              return skiftDate >= selectedDate.start && skiftDate <= endOfDay
+                            } else if (selectedDate.start) {
+                              return skiftDate.toDateString() === selectedDate.start.toDateString()
+                            }
+                            return true
+                          })
+                        }
+                        sessionStorage.setItem('histogramShifts', JSON.stringify(toSend))
+                        try { sessionStorage.setItem('from', window.location.pathname + window.location.search) } catch {}
+                        let from = ''
+                        try { from = window.location.pathname + window.location.search } catch {}
+                        const qs = from ? `?from=${encodeURIComponent(from)}` : ''
+                        router.push(`/dashboard/shifts/by-driver${qs}`)
+                      }}
+                      title="Klikk for å se graf per sjåfør"
+                    >
+                      Km opptatt
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                      onClick={() => {
+                        let toSend = filteredSkifts
+                        if (selectedDate) {
+                          toSend = filteredSkifts.filter(skift => {
+                            const skiftDate = new Date(skift.startDato)
+                            if (selectedDate.start && selectedDate.end) {
+                              const endOfDay = new Date(selectedDate.end)
+                              endOfDay.setHours(23, 59, 59, 999)
+                              return skiftDate >= selectedDate.start && skiftDate <= endOfDay
+                            } else if (selectedDate.start) {
+                              return skiftDate.toDateString() === selectedDate.start.toDateString()
+                            }
+                            return true
+                          })
+                        }
+                        sessionStorage.setItem('histogramShifts', JSON.stringify(toSend))
+                        try { sessionStorage.setItem('from', window.location.pathname + window.location.search) } catch {}
+                        let from = ''
+                        try { from = window.location.pathname + window.location.search } catch {}
+                        const qs = new URLSearchParams()
+                        qs.set('metric','occupiedPercentage')
+                        if (from) qs.set('from', encodeURIComponent(from))
+                        router.push(`/dashboard/shifts/by-driver?${qs.toString()}`)
+                      }}
+                      title="Klikk for å se graf per sjåfør"
+                    >
+                      Opptatt %
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                      onClick={() => {
+                        let toSend = filteredSkifts
+                        if (selectedDate) {
+                          toSend = filteredSkifts.filter(skift => {
+                            const skiftDate = new Date(skift.startDato)
+                            if (selectedDate.start && selectedDate.end) {
+                              const endOfDay = new Date(selectedDate.end)
+                              endOfDay.setHours(23, 59, 59, 999)
+                              return skiftDate >= selectedDate.start && skiftDate <= endOfDay
+                            } else if (selectedDate.start) {
+                              return skiftDate.toDateString() === selectedDate.start.toDateString()
+                            }
+                            return true
+                          })
+                        }
+                        sessionStorage.setItem('histogramShifts', JSON.stringify(toSend))
+                        try { sessionStorage.setItem('from', window.location.pathname + window.location.search) } catch {}
+                        let from = ''
+                        try { from = window.location.pathname + window.location.search } catch {}
+                        const qs = new URLSearchParams()
+                        qs.set('metric','antTurer')
+                        if (from) qs.set('from', encodeURIComponent(from))
+                        router.push(`/dashboard/shifts/by-driver?${qs.toString()}`)
+                      }}
+                      title="Klikk for å se graf per sjåfør"
+                    >
+                      Turer
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                      onClick={() => handleColumnClick('lonnBasis')}
+                      title="Klikk for å se histogram"
+                    >
+                      Lønnsgrunnlag
+                    </TableHead>
                     <TableHead>Lønn</TableHead>
-                    <TableHead>Lønn/time</TableHead>
+                    <TableHead>Lønnsgrunnlag/time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -339,7 +606,21 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                   )}
                 </TableCell>
                 <TableCell>{skift.totalKm} km</TableCell>
-                <TableCell>{skift.kmOpptatt} km</TableCell>
+                <TableCell>
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('histogramShifts', JSON.stringify([skift]))
+                      let from = ''
+                      try { from = window.location.pathname + window.location.search } catch {}
+                      const qs = from ? `?from=${encodeURIComponent(from)}` : ''
+                      router.push(`/dashboard/shifts/by-driver${qs}`)
+                    }}
+                    className="text-blue-600 hover:underline"
+                    title="Se graf for dette skiftet"
+                  >
+                    {skift.kmOpptatt} km
+                  </button>
+                </TableCell>
                 <TableCell className="font-medium">
                   {calculateOccupiedPercentage(skift) > 0 ? (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -364,7 +645,7 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                 </TableCell>
                 <TableCell className="font-medium">
                   {calculateHourlySalary(skift) > 0 ? (
-                    calculateHourlySalary(skift).toLocaleString('no-NO', { style: 'currency', currency: 'NOK' }) + '/time'
+                    (skift.lonnBasis / calculateHoursBetween(skift.startTid, skift.sluttTid || skift.startTid, skift.startDato, skift.sluttDato)).toLocaleString('no-NO', { style: 'currency', currency: 'NOK' }) + '/time'
                   ) : (
                     <span className="text-gray-400">N/A</span>
                   )}
@@ -378,71 +659,44 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
           ))}
         </div>
         
-        {/* Summer */}
-        <div className="mt-8 p-4 bg-blue-50 rounded-lg border">
-          <h4 className="text-lg font-semibold text-gray-800 mb-4">Summer for alle skifter</h4>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                {calculateTotals().totalKmSkift.toLocaleString('no-NO')} km
-              </div>
-              <div className="text-sm text-gray-600">Km skift</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {calculateTotals().totalKmOpptatt.toLocaleString('no-NO')} km
-              </div>
-              <div className="text-sm text-gray-600">Km opptatt</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {calculateTotals().totalTurer.toLocaleString('no-NO')}
-              </div>
-              <div className="text-sm text-gray-600">Turer</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
-                {calculateTotals().totalLonnBasis.toLocaleString('no-NO', { 
-                  style: 'currency', 
-                  currency: 'NOK' 
-                })}
-              </div>
-              <div className="text-sm text-gray-600">Lønnsgrunnlag</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">
-                {calculateTotals().totalSalary.toLocaleString('no-NO', { 
-                  style: 'currency', 
-                  currency: 'NOK' 
-                })}
-              </div>
-              <div className="text-sm text-gray-600">Total lønn</div>
-            </div>
-          </div>
+        {/* Summer (kompakt) */}
+        <div className="mt-4 px-3 py-2 bg-blue-50/60 rounded border flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-medium text-gray-700 mr-1">Summer:</span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/70 text-blue-700 border">
+            <span className="font-semibold">Km skift:</span>
+            {calculateTotals().totalKmSkift.toLocaleString('no-NO')} km
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/70 text-green-700 border">
+            <span className="font-semibold">Km opptatt:</span>
+            {calculateTotals().totalKmOpptatt.toLocaleString('no-NO')} km
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/70 text-purple-700 border">
+            <span className="font-semibold">Turer:</span>
+            {calculateTotals().totalTurer.toLocaleString('no-NO')}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/70 text-orange-700 border">
+            <span className="font-semibold">Lønnsgrunnlag:</span>
+            {calculateTotals().totalLonnBasis.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/70 text-emerald-700 border">
+            <span className="font-semibold">Total lønn:</span>
+            {calculateTotals().totalSalary.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })}
+          </span>
         </div>
         
-        {/* Gjennomsnittlig lønn/time */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800">Gjennomsnittlig lønn/time</h4>
-              <p className="text-sm text-gray-600">Basert på alle skifter med gyldig lønn/time beregning</p>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-green-600">
-                {calculateAverageHourlySalary().toLocaleString('no-NO', { 
-                  style: 'currency', 
-                  currency: 'NOK' 
-                })}/time
-              </div>
-              <div className="text-sm text-gray-500">
-                {filteredSkifts.filter(skift => calculateHourlySalary(skift) > 0).length} av {filteredSkifts.length} skifter
-              </div>
-            </div>
-          </div>
+        {/* Gjennomsnittlig lønn/time (kompakt) */}
+        <div className="mt-3 px-3 py-2 bg-gray-50 rounded border flex items-center justify-between text-xs">
+          <span className="text-gray-700">Gjennomsnittlig lønn/time</span>
+          <span className="font-semibold text-green-700">
+            {calculateAverageHourlySalary().toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })}/time
+          </span>
+          <span className="text-gray-500">
+            {filteredSkifts.filter(skift => calculateHourlySalary(skift) > 0).length} av {filteredSkifts.length} skifter
+          </span>
         </div>
       </CardContent>
     </Card>
+    </div>
   )
 }
 

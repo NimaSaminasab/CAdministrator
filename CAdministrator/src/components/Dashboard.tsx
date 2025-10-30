@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -19,13 +20,16 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
     totalDrivers: 0,
     totalCars: 0,
     totalSkifts: 0,
     activeSkifts: 0
   })
-  const [activeTab, setActiveTab] = useState('drivers')
+  const initialTab = searchParams?.get('tab') || 'drivers'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [showAddDriver, setShowAddDriver] = useState(false)
   const [showAddCar, setShowAddCar] = useState(false)
   const driversTableRef = useRef<DriversTableRef>(null)
@@ -33,6 +37,14 @@ export default function Dashboard() {
   useEffect(() => {
     fetchStats()
   }, [])
+
+  // Keep active tab in sync when URL query (?tab=...) changes externally (e.g., header buttons)
+  useEffect(() => {
+    const urlTab = searchParams?.get('tab') || 'drivers'
+    if (urlTab !== activeTab) {
+      setActiveTab(urlTab)
+    }
+  }, [searchParams])
 
   const fetchStats = async () => {
     try {
@@ -113,13 +125,17 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={(v) => {
+        setActiveTab(v)
+        try {
+          const sp = new URLSearchParams(Array.from(searchParams?.entries?.() || []))
+          sp.set('tab', v)
+          router.replace(`?${sp.toString()}`)
+        } catch {}
+      }} className="space-y-6">
         <div className="flex justify-between items-center">
-          <TabsList>
-            <TabsTrigger value="drivers">Sjåfører</TabsTrigger>
-            <TabsTrigger value="cars">Biler</TabsTrigger>
-            <TabsTrigger value="skifts">Skift</TabsTrigger>
-          </TabsList>
+          {/* Tabs triggers hidden; navigation moved to top menu */}
+          <div className="hidden md:block" />
           
           <div className="flex gap-2">
             {activeTab === 'drivers' && (
@@ -147,6 +163,18 @@ export default function Dashboard() {
         
         <TabsContent value="skifts">
           <SkiftsTable onRefresh={fetchStats} />
+        </TabsContent>
+
+        <TabsContent value="utgifter">
+          <Card>
+            <CardHeader>
+              <CardTitle>Utgifter</CardTitle>
+              <CardDescription>Kommer snart. Her kan du registrere og se utgifter.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600">Ingen data å vise ennå.</div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

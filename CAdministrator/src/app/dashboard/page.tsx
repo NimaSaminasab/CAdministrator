@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import DriverDashboard from '@/components/DriverDashboard'
 import Dashboard from '@/components/Dashboard'
+import { Button } from '@/components/ui/button'
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
@@ -32,6 +33,13 @@ export default function DashboardPage() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Top menu buttons */}
+              <div className="hidden md:flex items-center gap-2 mr-4">
+                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=drivers')}>Sjåfører</Button>
+                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=cars')}>Biler</Button>
+                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=skifts')}>Skift</Button>
+                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=utgifter')}>Utgifter</Button>
+              </div>
               <div className="text-sm text-gray-600">
                 Logget inn som: <span className="font-medium">{user.username}</span>
                 {user.role === 'driver' && user.driver && (

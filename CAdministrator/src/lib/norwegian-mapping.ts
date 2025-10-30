@@ -65,6 +65,7 @@ export const reverseSkiftMapping = Object.fromEntries(
 // Utility functions
 export function mapDriverToNorwegian(driver: any): any {
   const mapped: any = {}
+  if (driver.id !== undefined) mapped.id = driver.id
   for (const [norwegian, english] of Object.entries(driverFieldMapping)) {
     if (driver[english] !== undefined) {
       mapped[norwegian] = driver[english]

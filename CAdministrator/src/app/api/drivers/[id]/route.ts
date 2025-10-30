@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
 const driverSchema = z.object({
@@ -12,6 +13,11 @@ const driverSchema = z.object({
   postalCode: z.string().min(1),
   telephone: z.string().min(1),
   email: z.string().email(),
+  salaryPercentage: z.union([z.number(), z.string()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val
+    if (isNaN(num)) throw new Error('salaryPercentage must be a number')
+    return num
+  }).refine((v) => v >= 0 && v <= 100, { message: 'salaryPercentage must be 0-100' }),
 })
 
 export async function GET(
@@ -59,7 +65,11 @@ export async function PUT(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 })
     }
-    return NextResponse.json({ error: 'Failed to update driver' }, { status: 500 })
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      // Unique constraint or other Prisma errors
+      return NextResponse.json({ error: { code: error.code, meta: error.meta, message: error.message } }, { status: 400 })
+    }
+    return NextResponse.json({ error: (error as Error)?.message || 'Failed to update driver' }, { status: 500 })
   }
 }
 

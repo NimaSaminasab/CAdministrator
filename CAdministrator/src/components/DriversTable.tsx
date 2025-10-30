@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Edit, Trash2, Phone, Mail, Search } from 'lucide-react'
+import EditDriverDialog from '@/components/EditDriverDialog'
 
 interface Driver {
   id: number
@@ -34,6 +35,8 @@ const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [editOpen, setEditOpen] = useState(false)
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null)
 
   useEffect(() => {
     fetchDrivers()
@@ -69,6 +72,11 @@ const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh
     }
   }
 
+  const openEdit = (driver: Driver) => {
+    setSelectedDriver(driver)
+    setEditOpen(true)
+  }
+
   if (loading) {
     return <div className="text-center py-8">Laster sjåfører...</div>
   }
@@ -100,6 +108,7 @@ const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh
   })
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Sjåfører ({filteredDrivers.length} av {drivers.length})</CardTitle>
@@ -170,7 +179,7 @@ const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh
                 </TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={() => openEdit(driver)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button 
@@ -190,6 +199,13 @@ const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh
         </div>
       </CardContent>
     </Card>
+    <EditDriverDialog
+      open={editOpen}
+      onOpenChange={setEditOpen}
+      driver={selectedDriver}
+      onSuccess={async () => { await fetchDrivers(); onRefresh(); }}
+    />
+    </>
   )
 })
 
