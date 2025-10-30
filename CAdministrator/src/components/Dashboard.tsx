@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Car, Users, Clock, Plus } from 'lucide-react'
@@ -168,11 +170,11 @@ export default function Dashboard() {
         <TabsContent value="utgifter">
           <Card>
             <CardHeader>
-              <CardTitle>Utgifter</CardTitle>
-              <CardDescription>Kommer snart. Her kan du registrere og se utgifter.</CardDescription>
+              <CardTitle>Registrer utgift</CardTitle>
+              <CardDescription>Fyll ut og lagre en ny utgift.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-sm text-gray-600">Ingen data å vise ennå.</div>
+              <UtgifterForm />
             </CardContent>
           </Card>
         </TabsContent>
@@ -190,5 +192,136 @@ export default function Dashboard() {
         onSuccess={handleAddSuccess} 
       />
     </div>
+  )
+}
+
+function UtgifterForm() {
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    dato: new Date().toISOString().slice(0, 10),
+    kategori: '',
+    belop: '',
+    beskrivelse: '',
+    sjaforId: '',
+    bilId: ''
+  })
+  const [message, setMessage] = useState<string | null>(null)
+  const [drivers, setDrivers] = useState<any[]>([])
+  const [cars, setCars] = useState<any[]>([])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const [dRes, cRes] = await Promise.all([
+          fetch('/api/drivers'),
+          fetch('/api/cars')
+        ])
+        const d = await dRes.json().catch(() => [])
+        const c = await cRes.json().catch(() => [])
+        setDrivers(Array.isArray(d) ? d : [])
+        setCars(Array.isArray(c) ? c : [])
+      } catch {
+        setDrivers([]); setCars([])
+      }
+    })()
+  }, [])
+
+  const onChange = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }))
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/utgifter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: form.dato,
+          category: form.kategori,
+          amount: parseFloat(form.belop.replace(',', '.')),
+          description: form.beskrivelse,
+          driverId: form.sjaforId ? parseInt(form.sjaforId) : undefined,
+          carId: form.bilId ? parseInt(form.bilId) : undefined,
+        })
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err?.error || 'Kunne ikke lagre utgiften')
+      }
+
+      setMessage('Utgiften er lagret!')
+      setForm({ dato: new Date().toISOString().slice(0, 10), kategori: '', belop: '', beskrivelse: '', sjaforId: '', bilId: '' })
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Kunne ikke lagre utgiften.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="dato">Dato</Label>
+          <Input id="dato" type="date" value={form.dato} onChange={(e) => onChange('dato', e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="kategori">Kategori</Label>
+          <Input id="kategori" placeholder="F.eks. Drivstoff, Service" value={form.kategori} onChange={(e) => onChange('kategori', e.target.value)} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="belop">Beløp (NOK)</Label>
+          <Input id="belop" type="number" step="0.01" placeholder="0.00" value={form.belop} onChange={(e) => onChange('belop', e.target.value)} required />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="beskrivelse">Beskrivelse</Label>
+          <Input id="beskrivelse" placeholder="Valgfritt" value={form.beskrivelse} onChange={(e) => onChange('beskrivelse', e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="sjaforId">Sjåfør (valgfritt)</Label>
+            <select
+              id="sjaforId"
+              className="block w-full border rounded px-3 py-2 text-sm"
+              value={form.sjaforId}
+              onChange={(e) => onChange('sjaforId', e.target.value)}
+            >
+              <option value="">Velg sjåfør…</option>
+              {drivers.map((dr: any) => (
+                <option key={dr.id} value={dr.id}>
+                  {`${dr.fornavn ?? ''} ${dr.etternavn ?? ''}`.trim() || `Sjåfør #${dr.id}`} {dr.sjåforNummer ? `(#${dr.sjåforNummer})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="bilId">Bil (valgfritt)</Label>
+            <select
+              id="bilId"
+              className="block w-full border rounded px-3 py-2 text-sm"
+              value={form.bilId}
+              onChange={(e) => onChange('bilId', e.target.value)}
+            >
+              <option value="">Velg bil…</option>
+              {cars.map((car: any) => (
+                <option key={car.id} value={car.id}>
+                  {car.skiltNummer ?? `Bil #${car.id}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={saving}>{saving ? 'Lagrer...' : 'Lagre utgift'}</Button>
+        {message && <span className="text-sm text-gray-600">{message}</span>}
+      </div>
+    </form>
   )
 }

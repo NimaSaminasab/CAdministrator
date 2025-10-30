@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { mapCarToNorwegian, mapSkiftToNorwegian } from '@/lib/norwegian-mapping'
 
 const carSchema = z.object({
   licenseNumber: z.string().min(1),
@@ -29,7 +30,12 @@ export async function GET(
       return NextResponse.json({ error: 'Car not found' }, { status: 404 })
     }
     
-    return NextResponse.json(car)
+    // Map to Norwegian field names (aligns with /api/cars list endpoint)
+    const norwegianCar: any = mapCarToNorwegian(car)
+    if (car.skifts) {
+      norwegianCar.skifts = car.skifts.map((s: any) => mapSkiftToNorwegian(s))
+    }
+    return NextResponse.json(norwegianCar)
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch car' }, { status: 500 })
   }

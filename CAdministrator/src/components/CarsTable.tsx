@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Edit, Trash2, Car } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface Car {
   id: number
@@ -21,6 +22,7 @@ interface CarsTableProps {
 export default function CarsTable({ onRefresh }: CarsTableProps) {
   const [cars, setCars] = useState<Car[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     fetchCars()
@@ -68,6 +70,7 @@ export default function CarsTable({ onRefresh }: CarsTableProps) {
               <TableHead>Bilmerke</TableHead>
               <TableHead>Årsmodell</TableHead>
               <TableHead>Skift</TableHead>
+              <TableHead>Utgifter</TableHead>
               <TableHead>Handlinger</TableHead>
             </TableRow>
           </TableHeader>
@@ -86,6 +89,11 @@ export default function CarsTable({ onRefresh }: CarsTableProps) {
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     {car.skifts?.length || 0} skift
                   </span>
+                </TableCell>
+                <TableCell>
+                  <Button variant="outline" size="sm" onClick={() => router.push(`/dashboard/utgifter/bil/${car.id}`)}>
+                    Se utgifter
+                  </Button>
                 </TableCell>
                 <TableCell>
                   <div className="flex space-x-2">

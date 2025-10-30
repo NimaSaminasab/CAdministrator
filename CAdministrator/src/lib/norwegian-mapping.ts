@@ -86,6 +86,7 @@ export function mapDriverFromNorwegian(driver: any): any {
 
 export function mapCarToNorwegian(car: any): any {
   const mapped: any = {}
+  if (car.id !== undefined) mapped.id = car.id
   for (const [norwegian, english] of Object.entries(carFieldMapping)) {
     if (car[english] !== undefined) {
       mapped[norwegian] = car[english]

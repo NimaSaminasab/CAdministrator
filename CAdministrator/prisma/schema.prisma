@@ -43,6 +43,7 @@ model Driver {
   // Relations
   skifts Skift[]
   user   User?
+  expenses Expense[]
 
   @@map("drivers")
 }
@@ -57,6 +58,7 @@ model Car {
 
   // Relations
   skifts Skift[]
+  expenses Expense[]
 
   @@map("cars")
 }
@@ -91,5 +93,23 @@ model Skift {
   car    Car    @relation(fields: [carId], references: [id], onDelete: Cascade)
 
   @@map("skifts")
+}
+
+model Expense {
+  id          Int      @id @default(autoincrement())
+  date        DateTime
+  category    String
+  amount      Decimal   @default(0)
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // optional relations
+  driverId Int?
+  carId    Int?
+  driver   Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  car      Car?    @relation(fields: [carId], references: [id], onDelete: SetNull)
+
+  @@map("expenses")
 }
 
