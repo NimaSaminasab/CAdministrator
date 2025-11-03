@@ -20,10 +20,17 @@ const driverSchema = z.object({
   }).refine((val) => val >= 0 && val <= 100, {
     message: 'Lønnprosent må være mellom 0 og 100'
   }),
+  ikkeVisMegForAndre: z.boolean().optional().default(false),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Get user info from query params (sent from client)
+    const searchParams = request.nextUrl.searchParams
+    const userRole = searchParams.get('role') || 'admin' // Default to admin if not provided
+    const userId = searchParams.get('userId') // Optional: driver's user ID
+    const driverId = searchParams.get('driverId') // Optional: driver's ID
+    
     const drivers = await prisma.driver.findMany({
       include: {
         skifts: {
@@ -33,8 +40,26 @@ export async function GET() {
       orderBy: { name: 'asc' }
     })
     
+    // Filter drivers based on hideFromOthers flag and user role
+    let filteredDrivers = drivers
+    if (userRole !== 'admin') {
+      // For non-admin users, filter out drivers with hideFromOthers=true
+      // unless it's the current user's own driver record
+      filteredDrivers = drivers.filter(driver => {
+        if (driver.hideFromOthers) {
+          // If hideFromOthers is true, only show if it's the current user's own driver record
+          if (driverId && driver.id === parseInt(driverId)) {
+            return true // Show own record
+          }
+          return false // Hide from others
+        }
+        return true // Show if hideFromOthers is false
+      })
+    }
+    // Admin sees all drivers
+    
     // Map to Norwegian field names
-    const norwegianDrivers = drivers.map(driver => {
+    const norwegianDrivers = filteredDrivers.map(driver => {
       const mappedDriver = mapDriverToNorwegian(driver)
       // Map nested skifts if they exist
       if (driver.skifts) {

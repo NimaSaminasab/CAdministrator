@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Clock, User, Car, Search } from 'lucide-react'
 import Calendar, { DateRange } from './Calendar'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Skift {
   id: number
@@ -39,6 +40,7 @@ interface SkiftsTableProps {
 }
 
 export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
+  const { user } = useAuth()
   const router = useRouter()
   const [skifts, setSkifts] = useState<Skift[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,11 +49,20 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
 
   useEffect(() => {
     fetchSkifts()
-  }, [])
+  }, [user])
 
   const fetchSkifts = async () => {
     try {
-      const response = await fetch('/api/skifts')
+      // Build query params with user info
+      const params = new URLSearchParams()
+      if (user?.role) {
+        params.set('role', user.role)
+      }
+      if (user?.driverId) {
+        params.set('driverId', user.driverId.toString())
+      }
+      
+      const response = await fetch(`/api/skifts?${params.toString()}`)
       const data = await response.json()
       
       // API already returns data sorted by newest first (orderBy: { startDate: 'desc' })
@@ -612,8 +623,8 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groupedSkifts[monthYear].map((skift) => (
-              <TableRow key={skift.id}>
+                  {groupedSkifts[monthYear].map((skift, index) => (
+              <TableRow key={`${monthYear}-${skift.id || skift.skiftNummer || index}`}>
                 <TableCell className="font-medium">{skift.skiftNummer}</TableCell>
                 <TableCell>
                   <div className="flex items-center">

@@ -64,7 +64,16 @@ export default function HistogramPage() {
 
   const fetchShifts = async () => {
     try {
-      const response = await fetch('/api/skifts')
+      // Build query params with user info
+      const params = new URLSearchParams()
+      if (user?.role) {
+        params.set('role', user.role)
+      }
+      if (user?.driverId) {
+        params.set('driverId', user.driverId.toString())
+      }
+      
+      const response = await fetch(`/api/skifts?${params.toString()}`)
       const data = await response.json()
       
       // Filter shifts based on user role

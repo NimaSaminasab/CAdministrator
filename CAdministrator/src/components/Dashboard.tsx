@@ -13,6 +13,7 @@ import CarsTable from '@/components/CarsTable'
 import SkiftsTable from '@/components/SkiftsTable'
 import AddDriverDialog from '@/components/AddDriverDialog'
 import AddCarDialog from '@/components/AddCarDialog'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface DashboardStats {
   totalDrivers: number
@@ -21,6 +22,7 @@ interface DashboardStats {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
@@ -36,7 +38,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchStats()
-  }, [])
+  }, [user])
 
   // Keep active tab in sync when URL query (?tab=...) changes externally (e.g., header buttons)
   useEffect(() => {
@@ -48,10 +50,28 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
+      // Build query params with user info for drivers
+      const driversParams = new URLSearchParams()
+      if (user?.role) {
+        driversParams.set('role', user.role)
+      }
+      if (user?.driverId) {
+        driversParams.set('driverId', user.driverId.toString())
+      }
+      
+      // Build query params with user info for skifts
+      const skiftsParams = new URLSearchParams()
+      if (user?.role) {
+        skiftsParams.set('role', user.role)
+      }
+      if (user?.driverId) {
+        skiftsParams.set('driverId', user.driverId.toString())
+      }
+      
       const [driversRes, carsRes, skiftsRes] = await Promise.all([
-        fetch('/api/drivers'),
+        fetch(`/api/drivers?${driversParams.toString()}`),
         fetch('/api/cars'),
-        fetch('/api/skifts')
+        fetch(`/api/skifts?${skiftsParams.toString()}`)
       ])
       
       const drivers = await driversRes.json()

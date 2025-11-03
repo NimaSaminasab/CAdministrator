@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Edit, Trash2, Phone, Mail, Search } from 'lucide-react'
 import EditDriverDialog from '@/components/EditDriverDialog'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Driver {
   id: number
@@ -32,6 +33,7 @@ export interface DriversTableRef {
 }
 
 const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh }, ref) => {
+  const { user } = useAuth()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -40,11 +42,20 @@ const DriversTable = forwardRef<DriversTableRef, DriversTableProps>(({ onRefresh
 
   useEffect(() => {
     fetchDrivers()
-  }, [])
+  }, [user])
 
   const fetchDrivers = async () => {
     try {
-      const response = await fetch('/api/drivers')
+      // Build query params with user info
+      const params = new URLSearchParams()
+      if (user?.role) {
+        params.set('role', user.role)
+      }
+      if (user?.driverId) {
+        params.set('driverId', user.driverId.toString())
+      }
+      
+      const response = await fetch(`/api/drivers?${params.toString()}`)
       const data = await response.json()
       setDrivers(data)
     } catch (error) {

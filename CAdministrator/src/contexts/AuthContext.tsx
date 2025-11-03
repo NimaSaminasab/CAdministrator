@@ -12,6 +12,7 @@ interface User {
     name: string
     lastName: string
     driverNumber: string
+    hideFromOthers?: boolean
   }
 }
 

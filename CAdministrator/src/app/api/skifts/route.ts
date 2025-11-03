@@ -24,8 +24,13 @@ const skiftSchema = z.object({
   bilId: z.number(),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Get user info from query params (sent from client)
+    const searchParams = request.nextUrl.searchParams
+    const userRole = searchParams.get('role') || 'admin' // Default to admin if not provided
+    const driverId = searchParams.get('driverId') // Optional: driver's ID
+    
     const skifts = await prisma.skift.findMany({
       include: {
         driver: true,
@@ -34,8 +39,26 @@ export async function GET() {
       orderBy: { startDate: 'desc' }
     })
     
+    // Filter skifts based on hideFromOthers flag and user role
+    let filteredSkifts = skifts
+    if (userRole !== 'admin') {
+      // For non-admin users, filter out skifts from drivers with hideFromOthers=true
+      // unless it's the current user's own skifts
+      filteredSkifts = skifts.filter(skift => {
+        if (skift.driver.hideFromOthers) {
+          // If hideFromOthers is true, only show if it's the current user's own skifts
+          if (driverId && skift.driverId === parseInt(driverId)) {
+            return true // Show own skifts
+          }
+          return false // Hide skifts from other drivers with hideFromOthers=true
+        }
+        return true // Show skifts if hideFromOthers is false
+      })
+    }
+    // Admin sees all skifts
+    
     // Map to Norwegian field names
-    const norwegianSkifts = skifts.map(skift => mapSkiftToNorwegian(skift))
+    const norwegianSkifts = filteredSkifts.map(skift => mapSkiftToNorwegian(skift))
     
     return NextResponse.json(norwegianSkifts)
   } catch (error) {

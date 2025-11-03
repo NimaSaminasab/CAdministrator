@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
         id: user.driver.id,
         name: user.driver.name,
         lastName: user.driver.lastName,
-        driverNumber: user.driver.driverNumber
+        driverNumber: user.driver.driverNumber,
+        hideFromOthers: user.driver.hideFromOthers || false
       } : null
     }
     

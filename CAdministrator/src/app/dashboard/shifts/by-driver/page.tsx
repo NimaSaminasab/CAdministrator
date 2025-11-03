@@ -51,7 +51,16 @@ export default function KmOpptattByDriverPage() {
         setLoading(false)
         return
       }
-      const res = await fetch('/api/skifts')
+      // Build query params with user info
+      const params = new URLSearchParams()
+      if (user?.role) {
+        params.set('role', user.role)
+      }
+      if (user?.driverId) {
+        params.set('driverId', user.driverId.toString())
+      }
+      
+      const res = await fetch(`/api/skifts?${params.toString()}`)
       const data = await res.json()
       let filtered = data
       if (user?.role === 'driver' && user?.driverId) {
@@ -82,9 +91,8 @@ export default function KmOpptattByDriverPage() {
     for (const s of shifts) {
       let name = 'Ukjent'
       if (s.driver) {
-        const a = (s.driver.fornavn ?? s.driver.name ?? '').toString().trim()
-        const b = (s.driver.etternavn ?? s.driver.lastName ?? '').toString().trim()
-        name = `${a} ${b}`.trim() || s.driver.sjåforNummer || `Sjåfør #${s.sjåforId ?? ''}` || 'Ukjent'
+        // Only show driver number, not name
+        name = s.driver.sjåforNummer ? `#${s.driver.sjåforNummer}` : `Sjåfør #${s.sjåforId ?? ''}` || 'Ukjent'
       } else if (s.sjåforId) {
         name = `Sjåfør #${s.sjåforId}`
       }

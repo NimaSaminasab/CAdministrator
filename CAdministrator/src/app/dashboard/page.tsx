@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 import DriverDashboard from '@/components/DriverDashboard'
 import Dashboard from '@/components/Dashboard'
@@ -10,12 +10,17 @@ import { Button } from '@/components/ui/button'
 export default function DashboardPage() {
   const { user, logout } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (!user) {
       router.push('/login')
     }
   }, [user, router])
+
+  const isSkiftActive = pathname === '/dashboard' && searchParams?.get('tab') === 'skifts'
+  const isAlleSkiftActive = pathname === '/dashboard/skift/alle'
 
   if (!user) {
     return null // Will redirect
@@ -35,10 +40,35 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-4">
               {/* Top menu buttons */}
               <div className="hidden md:flex items-center gap-2 mr-4">
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=drivers')}>Sjåfører</Button>
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=cars')}>Biler</Button>
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=skifts')}>Skift</Button>
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=utgifter')}>Utgifter</Button>
+                {user.role === 'admin' ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=drivers')}>Sjåfører</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=cars')}>Biler</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=skifts')}>Skift</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=utgifter')}>Utgifter</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => router.push('/dashboard?tab=skifts')}
+                      className={isSkiftActive ? 'bg-gray-300' : ''}
+                    >
+                      Skift
+                    </Button>
+                    {!user.driver?.hideFromOthers && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => router.push('/dashboard/skift/alle')}
+                        className={isAlleSkiftActive ? 'bg-gray-300' : ''}
+                      >
+                        Alle skift
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
               <div className="text-sm text-gray-600">
                 Logget inn som: <span className="font-medium">{user.username}</span>

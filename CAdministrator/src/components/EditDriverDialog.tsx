@@ -21,6 +21,7 @@ interface EditDriverDialogProps {
     telefon: string
     epost: string
     lonnprosent: number
+    ikkeVisMegForAndre?: boolean
   } | null
   onSuccess: () => void
 }
@@ -37,6 +38,7 @@ export default function EditDriverDialog({ open, onOpenChange, driver, onSuccess
     telefon: '',
     epost: '',
     lonnprosent: 0,
+    ikkeVisMegForAndre: false,
   })
   const [loading, setLoading] = useState(false)
 
@@ -53,11 +55,12 @@ export default function EditDriverDialog({ open, onOpenChange, driver, onSuccess
         telefon: driver.telefon,
         epost: driver.epost,
         lonnprosent: driver.lonnprosent,
+        ikkeVisMegForAndre: driver.ikkeVisMegForAndre || false,
       })
     }
   }, [driver])
 
-  const handleInputChange = (field: string, value: string | number) => {
+  const handleInputChange = (field: string, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -78,6 +81,7 @@ export default function EditDriverDialog({ open, onOpenChange, driver, onSuccess
         telephone: String(formData.telefon).trim(),
         email: String(formData.epost).trim(),
         salaryPercentage: Number(formData.lonnprosent),
+        hideFromOthers: formData.ikkeVisMegForAndre === true || formData.ikkeVisMegForAndre === 'true',
       }
 
       const res = await fetch(`/api/drivers/${driver.id}`, {
@@ -175,6 +179,19 @@ export default function EditDriverDialog({ open, onOpenChange, driver, onSuccess
             onChange={e => handleInputChange('lonnprosent', parseFloat(e.target.value) || 0)}
             required
           />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="ikkeVisMegForAndre"
+            checked={formData.ikkeVisMegForAndre}
+            onChange={(e) => handleInputChange('ikkeVisMegForAndre', e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <Label htmlFor="ikkeVisMegForAndre" className="text-sm font-normal cursor-pointer">
+            Ikke vis meg for andre
+          </Label>
         </div>
 
           <DialogFooter>

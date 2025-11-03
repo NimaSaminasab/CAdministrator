@@ -12,6 +12,7 @@ export const driverFieldMapping = {
   telefon: 'telephone',
   epost: 'email',
   lonnprosent: 'salaryPercentage',
+  ikkeVisMegForAndre: 'hideFromOthers',
   opprettet: 'createdAt',
   oppdatert: 'updatedAt'
 } as const

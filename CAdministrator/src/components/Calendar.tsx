@@ -325,16 +325,18 @@ export default function Calendar({ selectedDate, onDateSelect, shiftsByDate, shi
         <div className="grid grid-cols-7 gap-1">
           {days.map((day, index) => {
             if (day === null) {
-              return <div key={index} className="h-8" />
+              return <div key={`empty-${index}`} className="h-8" />
             }
 
             const isTodayDate = isToday(day)
             const isSelectedDate = isSelected(day)
             const isInRangeDate = isInRange(day)
+            // Create unique key using month, year, and day
+            const uniqueKey = `${year}-${month}-${day}-${index}`
 
             return (
               <Button
-                key={day}
+                key={uniqueKey}
                 variant={isSelectedDate ? "default" : "ghost"}
                 size="sm"
                 className={`

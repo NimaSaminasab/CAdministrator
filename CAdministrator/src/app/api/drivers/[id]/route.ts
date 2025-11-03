@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
+import { mapDriverToNorwegian } from '@/lib/norwegian-mapping'
 
 const driverSchema = z.object({
   driverNumber: z.string().min(1),
@@ -18,6 +19,15 @@ const driverSchema = z.object({
     if (isNaN(num)) throw new Error('salaryPercentage must be a number')
     return num
   }).refine((v) => v >= 0 && v <= 100, { message: 'salaryPercentage must be 0-100' }),
+  hideFromOthers: z.union([z.boolean(), z.string(), z.undefined()]).transform((val) => {
+    if (val === undefined || val === null) {
+      return false
+    }
+    if (typeof val === 'string') {
+      return val === 'true' || val === '1'
+    }
+    return Boolean(val)
+  }).optional().default(false),
 })
 
 export async function GET(
@@ -41,7 +51,10 @@ export async function GET(
       return NextResponse.json({ error: 'Driver not found' }, { status: 404 })
     }
     
-    return NextResponse.json(driver)
+    // Map to Norwegian field names
+    const norwegianDriver = mapDriverToNorwegian(driver)
+    
+    return NextResponse.json(norwegianDriver)
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch driver' }, { status: 500 })
   }
@@ -60,7 +73,10 @@ export async function PUT(
       data: validatedData
     })
     
-    return NextResponse.json(driver)
+    // Map to Norwegian field names
+    const norwegianDriver = mapDriverToNorwegian(driver)
+    
+    return NextResponse.json(norwegianDriver)
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 })

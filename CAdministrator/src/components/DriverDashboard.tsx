@@ -45,7 +45,16 @@ export default function DriverDashboard() {
 
   const fetchDriverSkifts = async () => {
     try {
-      const response = await fetch('/api/skifts')
+      // Build query params with user info
+      const params = new URLSearchParams()
+      if (user?.role) {
+        params.set('role', user.role)
+      }
+      if (user?.driverId) {
+        params.set('driverId', user.driverId.toString())
+      }
+      
+      const response = await fetch(`/api/skifts?${params.toString()}`)
       const data = await response.json()
       
       // Filter skifts for this driver only
@@ -429,8 +438,8 @@ export default function DriverDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {groupedSkifts[monthYear].map((skift) => (
-                          <TableRow key={skift.id}>
+                        {groupedSkifts[monthYear].map((skift, index) => (
+                          <TableRow key={`${monthYear}-${skift.id || skift.skiftNummer || index}`}>
                             <TableCell className="font-medium">{skift.skiftNummer}</TableCell>
                             <TableCell>
                               <div className="flex items-center">

@@ -23,7 +23,8 @@ export default function AddDriverDialog({ open, onOpenChange, onSuccess }: AddDr
     postnummer: '',
     telefon: '',
     epost: '',
-    lonnprosent: 50
+    lonnprosent: 50,
+    ikkeVisMegForAndre: false
   })
   const [loading, setLoading] = useState(false)
 
@@ -55,7 +56,8 @@ export default function AddDriverDialog({ open, onOpenChange, onSuccess }: AddDr
           postnummer: '',
           telefon: '',
           epost: '',
-          lonnprosent: 50
+          lonnprosent: 50,
+          ikkeVisMegForAndre: false
         })
         onOpenChange(false)
         onSuccess()
@@ -197,6 +199,19 @@ export default function AddDriverDialog({ open, onOpenChange, onSuccess }: AddDr
               onChange={(e) => handleInputChange('lonnprosent', parseInt(e.target.value) || 0)}
               required
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="ikkeVisMegForAndre"
+              checked={formData.ikkeVisMegForAndre}
+              onChange={(e) => handleInputChange('ikkeVisMegForAndre', e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <Label htmlFor="ikkeVisMegForAndre" className="text-sm font-normal cursor-pointer">
+              Ikke vis meg for andre
+            </Label>
           </div>
 
           <DialogFooter>

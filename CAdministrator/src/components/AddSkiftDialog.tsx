@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Driver {
   id: number
@@ -27,6 +28,7 @@ interface AddSkiftDialogProps {
 }
 
 export default function AddSkiftDialog({ open, onOpenChange, onSuccess }: AddSkiftDialogProps) {
+  const { user } = useAuth()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [cars, setCars] = useState<Car[]>([])
   const [formData, setFormData] = useState({
@@ -52,12 +54,21 @@ export default function AddSkiftDialog({ open, onOpenChange, onSuccess }: AddSki
     if (open) {
       fetchDriversAndCars()
     }
-  }, [open])
+  }, [open, user])
 
   const fetchDriversAndCars = async () => {
     try {
+      // Build query params with user info for drivers
+      const driversParams = new URLSearchParams()
+      if (user?.role) {
+        driversParams.set('role', user.role)
+      }
+      if (user?.driverId) {
+        driversParams.set('driverId', user.driverId.toString())
+      }
+      
       const [driversRes, carsRes] = await Promise.all([
-        fetch('/api/drivers'),
+        fetch(`/api/drivers?${driversParams.toString()}`),
         fetch('/api/cars')
       ])
       

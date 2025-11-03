@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, usePathname, useRouter } from 'next/navigation'
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,10 @@ export default function CarExpensesPage() {
   const params = useParams()
   const pathname = usePathname()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, logout } = useAuth()
+  const isSkiftActive = pathname === '/dashboard' && searchParams?.get('tab') === 'skifts'
+  const isAlleSkiftActive = pathname === '/dashboard/skift/alle'
   const carId = useMemo(() => {
     const fromParams = Array.isArray((params as any)?.id) ? (params as any).id[0] : ((params as any)?.id as string | undefined)
     if (fromParams && String(fromParams).length > 0) return String(fromParams)
@@ -118,10 +121,35 @@ export default function CarExpensesPage() {
             <div className="flex items-center space-x-4">
               {/* Top menu buttons */}
               <div className="hidden md:flex items-center gap-2 mr-4">
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=drivers')}>Sjåfører</Button>
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=cars')}>Biler</Button>
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=skifts')}>Skift</Button>
-                <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=utgifter')}>Utgifter</Button>
+                {user?.role === 'admin' ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=drivers')}>Sjåfører</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=cars')}>Biler</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=skifts')}>Skift</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=utgifter')}>Utgifter</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => router.push('/dashboard?tab=skifts')}
+                      className={isSkiftActive ? 'bg-gray-300' : ''}
+                    >
+                      Skift
+                    </Button>
+                    {!user?.driver?.hideFromOthers && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => router.push('/dashboard/skift/alle')}
+                        className={isAlleSkiftActive ? 'bg-gray-300' : ''}
+                      >
+                        Alle skift
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
               <div className="text-sm text-gray-600">
                 Logget inn som: <span className="font-medium">{user?.username}</span>

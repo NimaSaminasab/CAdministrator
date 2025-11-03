@@ -37,6 +37,7 @@ model Driver {
   telephone    String
   email        String   @unique
   salaryPercentage Decimal @default(50) // Lønnprosent (default 50%)
+  hideFromOthers Boolean @default(false) // Ikke vis for andre bortsett fra admin og seg selv
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
