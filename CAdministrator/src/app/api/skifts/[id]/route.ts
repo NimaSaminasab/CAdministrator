@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { createAlertIfNeeded } from '@/lib/varsler-helper'
 
 const skiftSchema = z.object({
   skiftNumber: z.string().min(1),
@@ -64,6 +65,16 @@ export async function PUT(
         driver: true,
         car: true
       }
+    })
+    
+    // Check if this skift should trigger an alert
+    await createAlertIfNeeded({
+      id: skift.id,
+      skiftNumber: skift.skiftNumber,
+      kmOpptatt: skift.kmOpptatt,
+      antTurer: skift.antTurer,
+      lonnBasis: skift.salaryBasis,
+      totalKm: skift.totalKm
     })
     
     return NextResponse.json(skift)

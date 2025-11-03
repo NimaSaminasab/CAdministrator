@@ -11,6 +11,7 @@ import { Car, Users, Clock, Plus } from 'lucide-react'
 import DriversTable, { DriversTableRef } from '@/components/DriversTable'
 import CarsTable from '@/components/CarsTable'
 import SkiftsTable from '@/components/SkiftsTable'
+import VarslerTable from '@/components/VarslerTable'
 import AddDriverDialog from '@/components/AddDriverDialog'
 import AddCarDialog from '@/components/AddCarDialog'
 import { useAuth } from '@/contexts/AuthContext'
@@ -184,6 +185,10 @@ export default function Dashboard() {
               <UtgifterForm />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="varsler">
+          <VarslerTable />
         </TabsContent>
       </Tabs>
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { mapSkiftToNorwegian, mapSkiftFromNorwegian } from '@/lib/norwegian-mapping'
+import { createAlertIfNeeded } from '@/lib/varsler-helper'
 
 const skiftSchema = z.object({
   skiftNummer: z.string().min(1),
@@ -84,6 +85,16 @@ export async function POST(request: NextRequest) {
         driver: true,
         car: true
       }
+    })
+    
+    // Check if this skift should trigger an alert
+    await createAlertIfNeeded({
+      id: skift.id,
+      skiftNumber: skift.skiftNumber,
+      kmOpptatt: skift.kmOpptatt,
+      antTurer: skift.antTurer,
+      lonnBasis: skift.salaryBasis,
+      totalKm: skift.totalKm
     })
     
     // Map back to Norwegian for response

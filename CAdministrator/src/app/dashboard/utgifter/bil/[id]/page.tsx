@@ -113,20 +113,15 @@ export default function CarExpensesPage() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-full mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                Taxi Management System
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Top menu buttons */}
-              <div className="hidden md:flex items-center gap-2 mr-4">
+            {/* Top menu buttons */}
+            <div className="hidden md:flex items-center gap-2">
                 {user?.role === 'admin' ? (
                   <>
                     <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=drivers')}>Sjåfører</Button>
                     <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=cars')}>Biler</Button>
                     <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=skifts')}>Skift</Button>
                     <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=utgifter')}>Utgifter</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=varsler')}>Varsler</Button>
                   </>
                 ) : (
                   <>
@@ -148,9 +143,11 @@ export default function CarExpensesPage() {
                         Alle skift
                       </Button>
                     )}
+                    <Button variant="outline" size="sm" onClick={() => router.push('/dashboard?tab=varsler')}>Varsler</Button>
                   </>
                 )}
-              </div>
+            </div>
+            <div className="flex items-center space-x-4">
               <div className="text-sm text-gray-600">
                 Logget inn som: <span className="font-medium">{user?.username}</span>
                 {user?.role === 'driver' && user?.driver && (

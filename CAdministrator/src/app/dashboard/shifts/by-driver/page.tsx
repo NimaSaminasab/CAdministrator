@@ -153,6 +153,17 @@ export default function KmOpptattByDriverPage() {
   if (loading) return <div className="py-8 text-center">Laster graf...</div>
 
   const handleBack = () => {
+    // Check if there's a stored "from" path
+    try {
+      const from = sessionStorage.getItem('from')
+      if (from) {
+        router.push(from)
+        return
+      }
+    } catch (e) {
+      // Fallback if sessionStorage fails
+    }
+    // Default fallback
     router.push('/dashboard?tab=skifts')
   }
 

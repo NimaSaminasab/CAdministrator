@@ -92,6 +92,7 @@ model Skift {
   // Relations
   driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
   car    Car    @relation(fields: [carId], references: [id], onDelete: Cascade)
+  varsler Varsel? // One-to-one relation with Varsel
 
   @@map("skifts")
 }
@@ -112,5 +113,23 @@ model Expense {
   car      Car?    @relation(fields: [carId], references: [id], onDelete: SetNull)
 
   @@map("expenses")
+}
+
+model Varsel {
+  id            Int      @id @default(autoincrement())
+  skiftId       Int      @unique // Reference to the skift that triggered this alert
+  skiftNumber   String
+  kmOpptatt     Decimal
+  opptattProsent Decimal
+  antTurer      Int
+  lonnBasis     Decimal
+  reason        String   // Which criteria triggered the alert
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  skift Skift @relation(fields: [skiftId], references: [id], onDelete: Cascade)
+
+  @@map("varsler")
 }
 
