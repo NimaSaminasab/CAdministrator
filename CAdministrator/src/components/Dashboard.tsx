@@ -18,7 +18,6 @@ interface DashboardStats {
   totalDrivers: number
   totalCars: number
   totalSkifts: number
-  activeSkifts: number
 }
 
 export default function Dashboard() {
@@ -27,8 +26,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats>({
     totalDrivers: 0,
     totalCars: 0,
-    totalSkifts: 0,
-    activeSkifts: 0
+    totalSkifts: 0
   })
   const initialTab = searchParams?.get('tab') || 'drivers'
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -63,8 +61,7 @@ export default function Dashboard() {
       setStats({
         totalDrivers: drivers.length,
         totalCars: cars.length,
-        totalSkifts: skifts.length,
-        activeSkifts: skifts.filter((s: any) => !s.sluttDato).length
+        totalSkifts: skifts.length
       })
     } catch (error) {
       console.error('Failed to fetch stats:', error)
@@ -84,7 +81,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Totalt Sjåfører</CardTitle>
@@ -112,16 +109,6 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalSkifts}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aktive Skift</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.activeSkifts}</div>
           </CardContent>
         </Card>
       </div>
@@ -208,6 +195,8 @@ function UtgifterForm() {
   const [message, setMessage] = useState<string | null>(null)
   const [drivers, setDrivers] = useState<any[]>([])
   const [cars, setCars] = useState<any[]>([])
+  const [customKategori, setCustomKategori] = useState('')
+  const [customOptions, setCustomOptions] = useState<string[]>([])
 
   useEffect(() => {
     ;(async () => {
@@ -228,11 +217,40 @@ function UtgifterForm() {
 
   const onChange = (key: string, value: string) => setForm(prev => ({ ...prev, [key]: value }))
 
+  const handleAddCustomKategori = () => {
+    if (customKategori.trim()) {
+      const trimmedValue = customKategori.trim()
+      onChange('kategori', trimmedValue)
+      if (!customOptions.includes(trimmedValue) && !['Drivstoff', 'Service', 'Bompenger', 'Lønn', 'Annet'].includes(trimmedValue)) {
+        setCustomOptions([...customOptions, trimmedValue])
+      }
+      setCustomKategori('')
+    }
+  }
+
+  const handleDeleteKategori = () => {
+    if (form.kategori && customOptions.includes(form.kategori)) {
+      setCustomOptions(customOptions.filter(opt => opt !== form.kategori))
+      onChange('kategori', '')
+    } else if (form.kategori && !['Drivstoff', 'Service', 'Bompenger', 'Lønn', 'Annet'].includes(form.kategori)) {
+      onChange('kategori', '')
+    }
+  }
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setMessage(null)
     try {
+      // Validate that date is not in the future
+      const selectedDate = new Date(form.dato)
+      const today = new Date()
+      today.setHours(23, 59, 59, 999) // End of today
+      
+      if (selectedDate > today) {
+        throw new Error('Du kan ikke registrere utgift på dato etter dagens dato.')
+      }
+
       const res = await fetch('/api/utgifter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -253,6 +271,7 @@ function UtgifterForm() {
 
       setMessage('Utgiften er lagret!')
       setForm({ dato: new Date().toISOString().slice(0, 10), kategori: '', belop: '', beskrivelse: '', sjaforId: '', bilId: '' })
+      setCustomKategori('')
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Kunne ikke lagre utgiften.')
     } finally {
@@ -262,18 +281,70 @@ function UtgifterForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="dato">Dato</Label>
-          <Input id="dato" type="date" value={form.dato} onChange={(e) => onChange('dato', e.target.value)} required />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div className="flex items-end gap-2">
+          <Label htmlFor="dato" className="pb-2.5">Dato</Label>
+          <Input 
+            id="dato" 
+            type="date" 
+            value={form.dato} 
+            onChange={(e) => onChange('dato', e.target.value)} 
+            required 
+            className="h-10 flex-1"
+            max={new Date().toISOString().slice(0, 10)}
+          />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="kategori">Kategori</Label>
-          <Input id="kategori" placeholder="F.eks. Drivstoff, Service" value={form.kategori} onChange={(e) => onChange('kategori', e.target.value)} required />
+        <div className="flex flex-col">
+          <div className="flex gap-1 mb-2 items-end">
+            <Input
+              id="customKategori"
+              placeholder="Legg til kategori"
+              value={customKategori}
+              onChange={(e) => setCustomKategori(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleAddCustomKategori()
+                }
+              }}
+              className="flex-1 h-10"
+            />
+            <Button
+              type="button"
+              onClick={handleAddCustomKategori}
+              className="px-3 h-10"
+            >
+              Legg til
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDeleteKategori}
+              className="px-3 h-10 bg-red-600 hover:bg-red-700 text-white"
+            >
+              Slett
+            </Button>
+          </div>
+          <select
+            id="kategori"
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            value={form.kategori}
+            onChange={(e) => onChange('kategori', e.target.value)}
+            required
+          >
+            <option value="">Velg kategori</option>
+            <option value="Drivstoff">Drivstoff</option>
+            <option value="Service">Service</option>
+            <option value="Bompenger">Bompenger</option>
+            <option value="Lønn">Lønn</option>
+            <option value="Annet">Annet</option>
+            {customOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="belop">Beløp (NOK)</Label>
-          <Input id="belop" type="number" step="0.01" placeholder="0.00" value={form.belop} onChange={(e) => onChange('belop', e.target.value)} required />
+        <div className="flex items-end gap-2">
+          <Label htmlFor="belop" className="pb-2.5">Beløp (NOK)</Label>
+          <Input id="belop" type="number" step="0.01" placeholder="0.00" value={form.belop} onChange={(e) => onChange('belop', e.target.value)} required className="h-10 flex-1" />
         </div>
       </div>
 

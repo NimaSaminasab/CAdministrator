@@ -460,8 +460,31 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                     <TableHead>Stopp Dato & Tid</TableHead>
                     <TableHead 
                       className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
-                      onClick={() => handleColumnClick('totalKm')}
-                      title="Klikk for å se histogram"
+                      onClick={() => {
+                        let toSend = filteredSkifts
+                        if (selectedDate) {
+                          toSend = filteredSkifts.filter(skift => {
+                            const skiftDate = new Date(skift.startDato)
+                            if (selectedDate.start && selectedDate.end) {
+                              const endOfDay = new Date(selectedDate.end)
+                              endOfDay.setHours(23, 59, 59, 999)
+                              return skiftDate >= selectedDate.start && skiftDate <= endOfDay
+                            } else if (selectedDate.start) {
+                              return skiftDate.toDateString() === selectedDate.start.toDateString()
+                            }
+                            return true
+                          })
+                        }
+                        sessionStorage.setItem('histogramShifts', JSON.stringify(toSend))
+                        try { sessionStorage.setItem('from', window.location.pathname + window.location.search) } catch {}
+                        let from = ''
+                        try { from = window.location.pathname + window.location.search } catch {}
+                        const qs = new URLSearchParams()
+                        qs.set('metric','totalKm')
+                        if (from) qs.set('from', encodeURIComponent(from))
+                        router.push(`/dashboard/shifts/by-driver?${qs.toString()}`)
+                      }}
+                      title="Klikk for å se graf per sjåfør"
                     >
                       Km skift
                     </TableHead>
@@ -556,8 +579,31 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                     </TableHead>
                     <TableHead 
                       className="cursor-pointer hover:text-blue-600 hover:underline transition-colors"
-                      onClick={() => handleColumnClick('lonnBasis')}
-                      title="Klikk for å se histogram"
+                      onClick={() => {
+                        let toSend = filteredSkifts
+                        if (selectedDate) {
+                          toSend = filteredSkifts.filter(skift => {
+                            const skiftDate = new Date(skift.startDato)
+                            if (selectedDate.start && selectedDate.end) {
+                              const endOfDay = new Date(selectedDate.end)
+                              endOfDay.setHours(23, 59, 59, 999)
+                              return skiftDate >= selectedDate.start && skiftDate <= endOfDay
+                            } else if (selectedDate.start) {
+                              return skiftDate.toDateString() === selectedDate.start.toDateString()
+                            }
+                            return true
+                          })
+                        }
+                        sessionStorage.setItem('histogramShifts', JSON.stringify(toSend))
+                        try { sessionStorage.setItem('from', window.location.pathname + window.location.search) } catch {}
+                        let from = ''
+                        try { from = window.location.pathname + window.location.search } catch {}
+                        const qs = new URLSearchParams()
+                        qs.set('metric','lonnBasis')
+                        if (from) qs.set('from', encodeURIComponent(from))
+                        router.push(`/dashboard/shifts/by-driver?${qs.toString()}`)
+                      }}
+                      title="Klikk for å se graf per sjåfør"
                     >
                       Lønnsgrunnlag
                     </TableHead>
@@ -606,21 +652,7 @@ export default function SkiftsTable({ onRefresh }: SkiftsTableProps) {
                   )}
                 </TableCell>
                 <TableCell>{skift.totalKm} km</TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => {
-                      sessionStorage.setItem('histogramShifts', JSON.stringify([skift]))
-                      let from = ''
-                      try { from = window.location.pathname + window.location.search } catch {}
-                      const qs = from ? `?from=${encodeURIComponent(from)}` : ''
-                      router.push(`/dashboard/shifts/by-driver${qs}`)
-                    }}
-                    className="text-blue-600 hover:underline"
-                    title="Se graf for dette skiftet"
-                  >
-                    {skift.kmOpptatt} km
-                  </button>
-                </TableCell>
+                <TableCell>{skift.kmOpptatt} km</TableCell>
                 <TableCell className="font-medium">
                   {calculateOccupiedPercentage(skift) > 0 ? (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

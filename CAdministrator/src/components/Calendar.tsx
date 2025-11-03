@@ -95,6 +95,12 @@ export default function Calendar({ selectedDate, onDateSelect, shiftsByDate, shi
     onDateSelect({ start: today, end: null })
   }
 
+  const selectMonth = () => {
+    const firstDayOfMonth = new Date(year, month, 1)
+    const lastDayOfMonth = new Date(year, month + 1, 0)
+    onDateSelect({ start: firstDayOfMonth, end: lastDayOfMonth })
+  }
+
   const clearSelection = () => {
     onDateSelect(null)
   }
@@ -353,7 +359,15 @@ export default function Calendar({ selectedDate, onDateSelect, shiftsByDate, shi
             onClick={goToToday}
             className="flex-1"
           >
-            I dag
+            Idag
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={selectMonth}
+            className="flex-1"
+          >
+            Måneden
           </Button>
           <Button
             variant="outline"
@@ -361,7 +375,7 @@ export default function Calendar({ selectedDate, onDateSelect, shiftsByDate, shi
             onClick={clearSelection}
             className="flex-1"
           >
-            Vis alle
+            Alle
           </Button>
         </div>
 

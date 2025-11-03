@@ -36,7 +36,7 @@ export default function KmOpptattByDriverPage() {
   const { user } = useAuth()
   const [shifts, setShifts] = useState<Skift[]>([])
   const [loading, setLoading] = useState(true)
-  const metric = (searchParams?.get('metric') || 'kmOpptatt') as 'kmOpptatt' | 'occupiedPercentage' | 'antTurer'
+  const metric = (searchParams?.get('metric') || 'kmOpptatt') as 'kmOpptatt' | 'occupiedPercentage' | 'antTurer' | 'lonnBasis' | 'totalKm'
 
   useEffect(() => {
     loadShifts()
@@ -78,7 +78,7 @@ export default function KmOpptattByDriverPage() {
     }
 
     // Aggregate per driver
-    const sumMap: Record<string, { kmOpptatt: number; totalKm: number; turer: number }> = {}
+    const sumMap: Record<string, { kmOpptatt: number; totalKm: number; turer: number; lonnBasis: number }> = {}
     for (const s of shifts) {
       let name = 'Ukjent'
       if (s.driver) {
@@ -91,10 +91,12 @@ export default function KmOpptattByDriverPage() {
       const kmOcc = parseNum(s.kmOpptatt)
       const tKm = parseNum(s.totalKm)
       const tur = parseNum(s.antTurer)
-      if (!sumMap[name]) sumMap[name] = { kmOpptatt: 0, totalKm: 0, turer: 0 }
+      const lonn = parseNum(s.lonnBasis)
+      if (!sumMap[name]) sumMap[name] = { kmOpptatt: 0, totalKm: 0, turer: 0, lonnBasis: 0 }
       sumMap[name].kmOpptatt += kmOcc
       sumMap[name].totalKm += tKm
       sumMap[name].turer += tur
+      sumMap[name].lonnBasis += lonn
     }
 
     // Produce series based on metric
@@ -103,6 +105,10 @@ export default function KmOpptattByDriverPage() {
       entries = Object.entries(sumMap).map(([n, v]) => [n, v.kmOpptatt])
     } else if (metric === 'antTurer') {
       entries = Object.entries(sumMap).map(([n, v]) => [n, v.turer])
+    } else if (metric === 'lonnBasis') {
+      entries = Object.entries(sumMap).map(([n, v]) => [n, v.lonnBasis])
+    } else if (metric === 'totalKm') {
+      entries = Object.entries(sumMap).map(([n, v]) => [n, v.totalKm])
     } else {
       // occupiedPercentage = sum(kmOpptatt)/sum(totalKm)*100
       entries = Object.entries(sumMap).map(([n, v]) => [n, v.totalKm > 0 ? (v.kmOpptatt / v.totalKm) * 100 : 0])
@@ -112,8 +118,8 @@ export default function KmOpptattByDriverPage() {
   }, [shifts, metric])
 
   const maxValue = Math.max(...byDriver.map(([, v]) => v), 1)
-  const unit = metric === 'occupiedPercentage' ? '%' : metric === 'antTurer' ? '' : 'km'
-  const title = metric === 'occupiedPercentage' ? 'Opptatt % per sjåfør' : metric === 'antTurer' ? 'Turer per sjåfør' : 'Km opptatt per sjåfør'
+  const unit = metric === 'occupiedPercentage' ? '%' : metric === 'antTurer' ? '' : metric === 'lonnBasis' ? 'kr' : 'km'
+  const title = metric === 'occupiedPercentage' ? 'Opptatt % per sjåfør' : metric === 'antTurer' ? 'Turer per sjåfør' : metric === 'lonnBasis' ? 'Lønnsgrunnlag per sjåfør' : metric === 'totalKm' ? 'Km skift per sjåfør' : 'Km opptatt per sjåfør'
 
   // Build y-axis ticks with ~30% headroom above the max value
   const getTicks = () => {
@@ -178,17 +184,22 @@ export default function KmOpptattByDriverPage() {
                     {/* Ticks */}
                     {ticks.map(v => {
                       const bottomPct = top > 0 ? (v / top) * 100 : 0
+                      const tickLabel = metric === 'lonnBasis'
+                        ? v.toLocaleString('no-NO', { style: 'currency', currency: 'NOK', minimumFractionDigits: 0, maximumFractionDigits: 0 })
+                        : v.toLocaleString('no-NO')
                       return (
                         <div key={v} className="absolute left-0 right-0" style={{ bottom: `calc(${bottomPct}% + 0px)` }}>
                           <div className="flex items-center gap-2">
-                            <div className="text-[10px] text-gray-600 w-12 text-right">{v.toLocaleString('no-NO')}</div>
+                            <div className="text-[10px] text-gray-600 w-12 text-right">{tickLabel}</div>
                             <div className="flex-1 border-t border-dashed border-gray-200" />
                           </div>
                         </div>
                       )
                     })}
                     {/* Y-axis unit near top, clearly visible */}
-                    <div className="absolute top-2 right-1 text-[10px] text-gray-500 select-none">{unit}</div>
+                    {metric !== 'lonnBasis' && (
+                      <div className="absolute top-2 right-1 text-[10px] text-gray-500 select-none">{unit}</div>
+                    )}
                   </div>
 
                   {/* Plot area */}
@@ -199,15 +210,18 @@ export default function KmOpptattByDriverPage() {
                     <div className="absolute left-0 right-0 top-0 bottom-6 flex items-end gap-3 px-2">
                       {byDriver.map(([name, value]) => {
                         const heightPct = top > 0 ? (value / top) * 100 : 0
+                        const formattedValue = metric === 'lonnBasis' 
+                          ? value.toLocaleString('no-NO', { style: 'currency', currency: 'NOK' })
+                          : `${value.toLocaleString('no-NO')}${unit ? ' ' + unit : ''}`
                         return (
                           <div key={name} className="relative flex flex-col items-center w-16 h-full">
                             <div
                               className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 bg-blue-600 hover:bg-blue-700 transition-colors rounded-t group"
                               style={{ height: `${heightPct}%` }}
-                              title={`${value.toLocaleString('no-NO')}${unit ? ' ' + unit : ''}`}
+                              title={formattedValue}
                             >
-                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap">
-                                {value.toLocaleString('no-NO')}{unit ? ' ' + unit : ''}
+                              <div className="absolute -top-4 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap z-10">
+                                {formattedValue}
                               </div>
                             </div>
                           </div>
